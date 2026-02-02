@@ -8,7 +8,6 @@ from process_image import *
 
 
 def main():
-
     cap = cv2.VideoCapture(1)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
@@ -16,34 +15,25 @@ def main():
     while True:
 
 
-        # ret, frame = cap.read()
-        #
-        # cap.release()
-
-        for i in range(1,4):
-
-            frame = cv2.imread(f"test{i}.jpg")
-            print(f"test{i}.jpg")
-
-            paper = extract_paper(frame)
-
-            lines = extract_lines(paper)
-
-            skeleton = skeletonize(lines)
+        ret, frame = cap.read()
 
 
 
-            # cv2.imshow('skeleton', skeleton)
-            cv2.imwrite(f'out{i}_skeleton.png', skeleton)
-            cv2.imwrite(f'out{i}_lines.png', lines)
+        paper = extract_paper(frame)
 
-        time.sleep(0.05)
+        lines = extract_lines(paper)
+
+        skeleton = skeletonize(lines)
+
+
+        cv2.imshow('skeleton', skeleton)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
 
 
+    cap.release()
     cv2.destroyAllWindows()
 
 
