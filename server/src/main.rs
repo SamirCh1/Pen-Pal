@@ -197,27 +197,39 @@ fn send_to_device(state: &AppState, device_id: u64, msg: ServerMessage) {
 }
 
 fn try_start_session(state: &AppState, session_id: u64) {
-    let Some(mut session) = state.sessions.get_mut(&session_id) else {
+    let Some(session) = state.sessions.get(&session_id) else {
         return;
     };
 
-    let a_online = state.device_conns.contains_key(&session.device_a);
-    let b_online = state.device_conns.contains_key(&session.device_b);
+    let dev_a = session.device_a;
+    let dev_b = session.device_b;
+    let turn_dev = session.turn_device;
+
+    drop(session);
+
+    let a_online = state.device_conns.contains_key(&dev_a);
+    let b_online = state.device_conns.contains_key(&dev_b);
 
     if !a_online || !b_online {
         return;
     }
 
-    state.device_conns.get_mut(&session.device_a).unwrap().session_id = Some(session_id);
-    state.device_conns.get_mut(&session.device_b).unwrap().session_id = Some(session_id);
+    state.device_conns.get_mut(&dev_a).unwrap().session_id = Some(session_id);
+    state.device_conns.get_mut(&dev_b).unwrap().session_id = Some(session_id);
 
+    let Some(mut session) = state.sessions.get_mut(&session_id) else {
+        // TODO: handle disconect gracefully
+        return;
+    };
     session.state = SessionState::Active;
 
+    drop(session);
+
     let start = ServerMessage::StartSession { session_id: session_id };
-    send_to_device(state, session.device_a, start.clone());
-    send_to_device(state, session.device_b, start);
+    send_to_device(state, dev_a, start.clone());
+    send_to_device(state, dev_b, start);
     
-    send_to_device(state, session.turn_device, ServerMessage::Turn { session_id: session_id });
+    send_to_device(state, turn_dev, ServerMessage::Turn { session_id: session_id });
 }
 
 async fn start_session_handler(State(state): State<AppState>) -> impl IntoResponse {
