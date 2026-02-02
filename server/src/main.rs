@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::{atomic::{AtomicU64, Ordering}, Arc}};
+use std::{sync::{atomic::{AtomicU64, Ordering}, Arc}};
 use axum::{
     extract::{ws::{Message, WebSocket, WebSocketUpgrade}, State},
     http::{HeaderMap, StatusCode},
@@ -9,8 +9,8 @@ use axum::{
 use futures_util::{sink::SinkExt, stream::{StreamExt}};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{self, UnboundedReceiver};
-use tokio::sync::RwLock;
 use base64::{engine::general_purpose::URL_SAFE, Engine};
+use dashmap::DashMap;
 
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
@@ -70,8 +70,8 @@ struct Session {
 #[derive(Clone)]
 struct AppState {
     // Maps device_id to ConnectedDevice struct
-    device_conns: Arc<RwLock<HashMap<u64, ConnectedDevice>>>,
-    sessions: Arc<RwLock<HashMap<u64, Session>>>,
+    device_conns: Arc<DashMap<u64, ConnectedDevice>>,
+    sessions: Arc<DashMap<u64, Session>>,
     next_sid: Arc<AtomicU64>
 }
 
@@ -103,24 +103,18 @@ async fn ws_upgrade_handler(ws: WebSocketUpgrade, State(state): State<AppState>,
         return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response();
     };
 
-    let mut conns = state.device_conns.write().await;
-
-    if conns.contains_key(&device_id) {
+    if state.device_conns.contains_key(&device_id) {
         // already connected, reject connection
         return (StatusCode::CONFLICT, "Already connected on another websocket").into_response();
     };
 
     let (tx, rx) = mpsc::unbounded_channel::<ServerMessage>();
-    conns.insert(device_id, ConnectedDevice {
+    state.device_conns.insert(device_id, ConnectedDevice {
         account_id: account_id,
         tx_chan: tx,
         state: ConnectedDeviceState::Idle,
         session_id: None
     });
-
-    // We have to drop the lock explicitly to prevent it from being borrowed
-    // so we can move it into the closure
-    drop(conns);
 
     ws.on_upgrade(move |socket| handle_ws(socket, state, rx, device_id))
 }
@@ -133,12 +127,11 @@ fn get_other(device: u64, device_a: u64, device_b: u64) -> u64 {
     }
 }
 
-async fn handle_client_message(msg: &ClientMessage, device_id: u64, app_state: &AppState) {
+fn handle_client_message(msg: &ClientMessage, device_id: u64, app_state: &AppState) {
     match msg {
         ClientMessage::Submit { session_id, svg } => {
             // Lookup session_id
-            let conns = app_state.device_conns.read().await;
-            let dev = conns.get(&device_id).unwrap();
+            let dev = app_state.device_conns.get(&device_id).unwrap();
 
             let sid = match dev.session_id {
                 Some(s) => s,
@@ -149,16 +142,13 @@ async fn handle_client_message(msg: &ClientMessage, device_id: u64, app_state: &
                 return; // another error here
             }
 
-            let mut sessions = app_state.sessions.write().await;
-            let session = sessions.get_mut(&sid).unwrap();
+            let mut session = app_state.sessions.get_mut(&sid).unwrap();
 
             let other_device = get_other(device_id, session.device_a, session.device_b);
             session.turn_device = other_device;
 
-            drop(conns);
-
-            send_to_device(app_state, other_device, ServerMessage::Draw { session_id: sid, svg: svg.clone() }).await;
-            send_to_device(app_state, other_device, ServerMessage::Turn { session_id: sid }).await;
+            send_to_device(app_state, other_device, ServerMessage::Draw { session_id: sid, svg: svg.clone() });
+            send_to_device(app_state, other_device, ServerMessage::Turn { session_id: sid });
         }
     }
 }
@@ -185,7 +175,7 @@ async fn handle_ws(socket: WebSocket, app_state: AppState, mut rx_chan: Unbounde
                         continue;
                     }
                 };
-                handle_client_message(&parsed, device_id, &app_state).await;
+                handle_client_message(&parsed, device_id, &app_state);
             },
 
             Message::Close(_) => break,
@@ -195,48 +185,39 @@ async fn handle_ws(socket: WebSocket, app_state: AppState, mut rx_chan: Unbounde
         }
     }
     
-    let mut conns = app_state.device_conns.write().await;
-    conns.remove(&device_id);
+    app_state.device_conns.remove(&device_id);
 }
 
-async fn send_to_device(state: &AppState, device_id: u64, msg: ServerMessage) {
-    let conns = state.device_conns.read().await;
-
-    let Some(dev) = conns.get(&device_id) else {
+fn send_to_device(state: &AppState, device_id: u64, msg: ServerMessage) {
+    let Some(dev) = state.device_conns.get(&device_id) else {
         return;
     };
 
     dev.tx_chan.send(msg).unwrap();
 }
 
-async fn try_start_session(state: &AppState, session_id: u64) {
-    let mut sessions = state.sessions.write().await;
-    let mut conns = state.device_conns.write().await;
-
-    let Some(session) = sessions.get_mut(&session_id) else {
+fn try_start_session(state: &AppState, session_id: u64) {
+    let Some(mut session) = state.sessions.get_mut(&session_id) else {
         return;
     };
 
-    let a_online = conns.contains_key(&session.device_a);
-    let b_online = conns.contains_key(&session.device_b);
+    let a_online = state.device_conns.contains_key(&session.device_a);
+    let b_online = state.device_conns.contains_key(&session.device_b);
 
     if !a_online || !b_online {
         return;
     }
 
-    conns.get_mut(&session.device_a).unwrap().session_id = Some(session_id);
-    conns.get_mut(&session.device_b).unwrap().session_id = Some(session_id);
+    state.device_conns.get_mut(&session.device_a).unwrap().session_id = Some(session_id);
+    state.device_conns.get_mut(&session.device_b).unwrap().session_id = Some(session_id);
 
     session.state = SessionState::Active;
 
-    // dodgy but works for now
-    drop(conns);
-
     let start = ServerMessage::StartSession { session_id: session_id };
-    send_to_device(state, session.device_a, start.clone()).await;
-    send_to_device(state, session.device_b, start).await;
+    send_to_device(state, session.device_a, start.clone());
+    send_to_device(state, session.device_b, start);
     
-    send_to_device(state, session.turn_device, ServerMessage::Turn { session_id: session_id }).await;
+    send_to_device(state, session.turn_device, ServerMessage::Turn { session_id: session_id });
 }
 
 async fn start_session_handler(State(state): State<AppState>) -> impl IntoResponse {
@@ -246,18 +227,15 @@ async fn start_session_handler(State(state): State<AppState>) -> impl IntoRespon
     let device_b = 2;
     let sid = state.next_sid.fetch_add(1, Ordering::Relaxed);
 
-    {
-        let mut sessions = state.sessions.write().await;
-        sessions.insert(sid, Session {
-            id: sid,
-            device_a: device_a,
-            device_b: device_b,
-            state: SessionState::Pending,
-            turn_device: device_a
-        });
-    }
+    state.sessions.insert(sid, Session {
+        id: sid,
+        device_a: device_a,
+        device_b: device_b,
+        state: SessionState::Pending,
+        turn_device: device_a
+    });
 
-    try_start_session(&state, sid).await;
+    try_start_session(&state, sid);
 
     (StatusCode::OK, "ok")
 }
@@ -265,9 +243,9 @@ async fn start_session_handler(State(state): State<AppState>) -> impl IntoRespon
 #[tokio::main]
 async fn main() {
     let state = AppState {
-        device_conns: Arc::new(RwLock::new(HashMap::new())),
-        sessions: Arc::new(RwLock::new(HashMap::new())),
-        next_sid: Arc::new(AtomicU64::new(1))
+        device_conns: Arc::new(DashMap::new()),
+        sessions: Arc::new(DashMap::new()),
+        next_sid: Arc::new(AtomicU64::new(0))
     };
 
     let app = Router::new()

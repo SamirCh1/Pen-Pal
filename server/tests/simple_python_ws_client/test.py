@@ -19,7 +19,7 @@ print(ws.recv())
 
 submit_msg = {
     "type": "SUBMIT",
-    "session_id": 1,
+    "session_id": 0,
     "svg": "hello"
 }
 
