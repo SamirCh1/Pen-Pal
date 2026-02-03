@@ -37,18 +37,17 @@ enum ServerMessage {
     Error
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 enum ConnectedDeviceState {
     Idle,
-    InSession
+    InSession(u64)
 }
 
 #[derive(Clone)]
 struct ConnectedDevice {
     account_id: u64,
     tx_chan: mpsc::UnboundedSender<ServerMessage>,
-    state: ConnectedDeviceState,
-    session_id: Option<u64>
+    state: ConnectedDeviceState
 }
 
 #[derive(Clone)]
@@ -69,7 +68,8 @@ struct Session {
 
 #[derive(Clone)]
 struct AppState {
-    // Maps device_id to ConnectedDevice struct
+    // If using device_conns and sessions at the same time, always lock sessions first
+    // to prevent deadlocks
     device_conns: Arc<DashMap<u64, ConnectedDevice>>,
     sessions: Arc<DashMap<u64, Session>>,
     next_sid: Arc<AtomicU64>
@@ -112,8 +112,7 @@ async fn ws_upgrade_handler(ws: WebSocketUpgrade, State(state): State<AppState>,
     state.device_conns.insert(device_id, ConnectedDevice {
         account_id: account_id,
         tx_chan: tx,
-        state: ConnectedDeviceState::Idle,
-        session_id: None
+        state: ConnectedDeviceState::Idle
     });
 
     ws.on_upgrade(move |socket| handle_ws(socket, state, rx, device_id))
@@ -133,9 +132,8 @@ fn handle_client_message(msg: &ClientMessage, device_id: u64, app_state: &AppSta
             // Lookup session_id
             let dev = app_state.device_conns.get(&device_id).unwrap();
 
-            let sid = match dev.session_id {
-                Some(s) => s,
-                None => return // error here
+            let ConnectedDeviceState::InSession(sid) = dev.state else {
+                return // error here
             };
 
             if sid != *session_id {
@@ -197,33 +195,61 @@ fn send_to_device(state: &AppState, device_id: u64, msg: ServerMessage) {
 }
 
 fn try_start_session(state: &AppState, session_id: u64) {
-    let Some(session) = state.sessions.get(&session_id) else {
-        return;
+    let (dev_a, dev_b, turn_dev) = {
+        let Some(session) = state.sessions.get(&session_id) else {
+            return;
+        };
+
+        (session.device_a, session.device_a, session.turn_device)
     };
 
-    let dev_a = session.device_a;
-    let dev_b = session.device_b;
-    let turn_dev = session.turn_device;
+    // Setup device A
+    {
+        let Some(mut dev) = state.device_conns.get_mut(&dev_a) else {
+            return;
+        };
 
-    drop(session);
+        if dev.state != ConnectedDeviceState::Idle {
+            return;
+        }
 
-    let a_online = state.device_conns.contains_key(&dev_a);
-    let b_online = state.device_conns.contains_key(&dev_b);
-
-    if !a_online || !b_online {
-        return;
+        dev.state = ConnectedDeviceState::InSession(session_id);
     }
 
-    state.device_conns.get_mut(&dev_a).unwrap().session_id = Some(session_id);
-    state.device_conns.get_mut(&dev_b).unwrap().session_id = Some(session_id);
-
-    let Some(mut session) = state.sessions.get_mut(&session_id) else {
-        // TODO: handle disconect gracefully
-        return;
+    let revert = |state: &AppState, dev_id: u64| {
+        if let Some(mut dev) = state.device_conns.get_mut(&dev_id) {
+            dev.state = ConnectedDeviceState::Idle;
+        };
     };
-    session.state = SessionState::Active;
 
-    drop(session);
+    // Setup device B, or revert A
+    {
+        match state.device_conns.get_mut(&dev_b) {
+            Some(mut dev) => {
+                if dev.state != ConnectedDeviceState::Idle {
+                    revert(state, dev_a);
+                    return;
+                }
+
+                dev.state = ConnectedDeviceState::InSession(session_id);
+            }
+
+            None => {
+                revert(state, dev_a);
+                return;
+            }
+        }
+    }
+
+    // Update session state
+    {
+        let Some(mut session) = state.sessions.get_mut(&session_id) else {
+            revert(state, dev_a);
+            revert(state, dev_b);
+            return;
+        };
+        session.state = SessionState::Active;
+    }
 
     let start = ServerMessage::StartSession { session_id: session_id };
     send_to_device(state, dev_a, start.clone());
