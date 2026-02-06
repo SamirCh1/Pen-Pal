@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import potrace
 
 
 """
@@ -23,10 +24,10 @@ def extract_paper(image):
     hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
     hsv = cv2.GaussianBlur(hsv, (5,5), 2)
 
-    lower_red = np.array([20, 100, 0])
-    upper_red = np.array([340, 255, 255])
+    lower = np.array([20, 100, 0])
+    upper = np.array([340, 255, 255])
 
-    red = cv2.inRange(hsv, lower_red, upper_red)
+    red = cv2.inRange(hsv, lower, upper)
 
     contours, hierarchy = cv2.findContours(image=red, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_NONE)
 
@@ -57,9 +58,20 @@ def extract_lines(image, blockSize = 13):
 def skeletonize(image):
     inverted = cv2.bitwise_not(image)
     thin = cv2.ximgproc.thinning(inverted)
+    thin = cv2.bitwise_not(thin)
     final = thin
     return final;
 
 def vectorize(image):
+    bmp = potrace.Bitmap(image)
+    path = bmp.trace(
+        1, # we may not want to de-noise it, but will test with 1 for now
+        potrace.POTRACE_TURNPOLICY_BLACK, # seems like the most appropriate policy
+        1, #alphamax: experiment with this
+        False, #opticurve: set to 0 as we may want more curves. We will see if desired during testing
+        0.2 # tolerance: keep to default most likely
+        )
+    curves = path.curves
+    print(curves[0].segments)
     final = image
     return final

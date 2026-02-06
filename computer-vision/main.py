@@ -8,9 +8,9 @@ from process_image import *
 
 
 def corner_detect(img):
-    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    # gray = cv2.cvtColor(img,cv2.COLOR_RGB2GRAY)
 
-    gray = np.float32(gray)
+    gray = img
     dst = cv2.cornerHarris(gray,5,1,0.04)
     #result is dilated for marking the corners, not important
     dst = cv2.dilate(dst,None)
@@ -35,23 +35,29 @@ def mark_contours(img):
 def main():
     cap = cv2.VideoCapture(1)
 
+    # frame = cv2.imread('test3.jpg')
+
+
     while True:
 
+        # ret, frame = cap.read()
 
-        ret, frame = cap.read()
+        # paper = frame
 
-
-
-        paper = extract_paper(frame)
+        # paper = extract_paper(frame)
 
         # lines = extract_lines(paper)
         #
         # skeleton = skeletonize(lines)
 
+        skeleton = cv2.imread('test3_skeleton.png')
 
-        # img = mark_contours(frame)
+        vectorize(skeleton)
+
         cv2.imshow('OpenCV frame', paper)
 
+
+        break
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
