@@ -2,6 +2,8 @@ import cv2
 import numpy as np
 import potrace
 
+import time # for testing
+
 
 """
 Steps in image processing pipeline:
@@ -16,6 +18,19 @@ Steps in image processing pipeline:
         - convert sequential lines into curves
     5. normalise vector to correct proportions and angle
 """
+
+def full_processing_pipeline(image):
+
+    # paper = extract_paper(image)
+    paper = image # temporary before proper implementation
+
+    lines = extract_lines(paper)
+
+    skeleton = skeletonize(lines)
+
+    # curve_list = vectorize(skeleton)
+    # return curve_list
+    return skeleton
 
 #TODO
 # find coordinates of 3-4 corners of the paper and remove all components outside of it
@@ -63,6 +78,7 @@ def skeletonize(image):
     return final;
 
 def vectorize(image):
+    current_time = time.time()
     bmp = potrace.Bitmap(image)
     path = bmp.trace(
         1, # we may not want to de-noise it, but will test with 1 for now
@@ -71,7 +87,9 @@ def vectorize(image):
         False, #opticurve: set to 0 as we may want more curves. We will see if desired during testing
         0.2 # tolerance: keep to default most likely
         )
+    print(time.time() - current_time)
     curves = path.curves
-    print(curves[0].segments)
     final = image
     return final
+
+
