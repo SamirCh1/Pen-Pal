@@ -32,9 +32,7 @@ def full_processing_pipeline(image):
     # return curve_list
     return skeleton
 
-#TODO
-# find coordinates of 3-4 corners of the paper and remove all components outside of it
-# for demo 1, assume flat a4 on contrasting surface
+
 def extract_paper(image):
     # https://github.com/Akulaleelavathi/Extracting-a-Paper
     largest_contour = find_largest_contour(image)
@@ -116,30 +114,58 @@ def extract_lines(image, blockSize = 13):
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     blurred = cv2.GaussianBlur(gray, (5,5), 2)
     adaptive = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, blockSize, 2)
+
+    # # reduce noise in final output to save time tracing
+    # blurred = cv2.GaussianBlur(adaptive, (5,5), 2)
+    # _, threshold = cv2.threshold(blurred, 80, 255, cv2.THRESH_BINARY)
+
     final = adaptive
 
-    return final;
+    return final
 
 def skeletonize(image):
     inverted = cv2.bitwise_not(image)
     thin = cv2.ximgproc.thinning(inverted)
     thin = cv2.bitwise_not(thin)
     final = thin
-    return final;
-
-def vectorize(image):
-    current_time = time.time()
-    bmp = potrace.Bitmap(image)
-    path = bmp.trace(
-        1, # we may not want to de-noise it, but will test with 1 for now
-        potrace.POTRACE_TURNPOLICY_BLACK, # seems like the most appropriate policy
-        1, #alphamax: experiment with this
-        False, #opticurve: set to 0 as we may want more curves. We will see if desired during testing
-        0.2 # tolerance: keep to default most likely
-        )
-    print(time.time() - current_time)
-    curves = path.curves
-    final = image
     return final
+
+# convert skeletonized bitmap into series of curves
+# # each curve contains a series of segments
+# # each segment is a bezier curve
+def vectorize(skeleton):
+
+    #converts point from potrace's Point class to tuple
+    normal_point = lambda point : (point.x, point.y)
+
+    curve_list = []
+    bmp = potrace.Bitmap(skeleton)
+    path = bmp.trace(
+        3, # min area of curve
+        potrace.POTRACE_TURNPOLICY_BLACK, # seems like the most appropriate policy
+        1.2, #alphamax: experiment with this
+        True, #opticurve: set to True to minimize number of curves
+        0.2 # tolerance: most likely should keep to default
+        )
+    curves = path.curves
+
+    for curve in curves:
+        # convert from potrace's Curve class to list of Bezier curves
+        segments = []
+
+        # each curve uses the end of the previous curve as its start
+        last_end = curve.start_point
+        for segment in curve.segments:
+
+            if not segment.is_corner:
+                segments.append((
+                    normal_point(last_end),
+                    normal_point(segment.c1),
+                    normal_point(segment.c2),
+                    normal_point(segment.end_point)))
+
+                last_end = segment.end_point
+        curve_list.append(segments)
+    return curve_list
 
 
