@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-import potrace
+import potrace_modified as potrace
 
 import time # for testing
 
@@ -141,10 +141,10 @@ def vectorize(skeleton):
     curve_list = []
     bmp = potrace.Bitmap(skeleton)
     path = bmp.trace(
-        3, # min area of curve
+        10, # min area of curve
         potrace.POTRACE_TURNPOLICY_BLACK, # seems like the most appropriate policy
-        1.2, #alphamax: experiment with this
-        True, #opticurve: set to True to minimize number of curves
+        1.3333, #alphamax: experiment with this
+        False, #opticurve: set to True to minimize number of curves
         0.2 # tolerance: most likely should keep to default
         )
     curves = path.curves

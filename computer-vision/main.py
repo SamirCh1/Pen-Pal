@@ -7,14 +7,14 @@ from matplotlib import pyplot as plt
 from process_image import *
 
 def main():
-    # cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(1)
 
     frame = cv2.imread('test3.jpg')
 
 
     while True:
 
-        # ret, frame = cap.read()
+        ret, frame = cap.read()
 
         paper = frame
 

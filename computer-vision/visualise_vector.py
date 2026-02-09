@@ -1,7 +1,3 @@
-# Source - https://stackoverflow.com/a/69816648
-# Posted by Rabbid76
-# Retrieved 2026-02-07, License - CC BY-SA 4.0
-
 import pygame
 from pygame.locals import QUIT
 import numpy as np
@@ -9,10 +5,26 @@ import time
 
 from process_image import *
 import cv2
-import potrace
 
 WHITE = (255, 255, 255)
 BLACK = (0,0,0)
+
+# temporary function to simplify demo 1
+def curve_list_to_lines(curve_list, nlines):
+    line_list = []
+    for curve in curve_list:
+        for segment in curve:
+            p0 = segment[0]
+            p1 = segment[1]
+            p2 = segment[2]
+            p3 = segment[3]
+            prev = p0
+            for i in range(nlines):
+                t = 1 / nlines * (i+1)
+                point = (get_cubic_point(0, t, p0, p1, p2, p3), get_cubic_point(1, t, p0, p1, p2, p3))
+                line_list.append((prev, point))
+                prev = point
+    return line_list
 
 # calculate location of point at t
 def get_cubic_point(i, t, p0, p1, p2, p3):
@@ -25,7 +37,7 @@ def get_cubic_point(i, t, p0, p1, p2, p3):
 # render curve as series of lines between values of t
 def render_cubic(screen, p0, p1, p2, p3):
     prev = p0
-    for t in np.arange(0, 1, 0.01):
+    for t in np.arange(0, 1, 1/10):
         point = (get_cubic_point(0, t, p0, p1, p2, p3), get_cubic_point(1, t, p0, p1, p2, p3))
 
         pygame.draw.line(screen, BLACK, point, prev, 1)
@@ -55,7 +67,7 @@ def main():
 
     print(f"VECTORIZATION COMPLETED IN {round(time.time() - start_time, 3)} SECONDS")
 
-    dimensions = image.shape[0:2]
+    dimensions = tuple(reversed(image.shape[0:2]))
 
     pygame.init()
     screen = pygame.display.set_mode(dimensions)
@@ -71,7 +83,13 @@ def main():
         for (p0, p1, p2, p3) in curve:
             render_cubic(screen, p0, p1, p2, p3)
 
-            pygame.display.update() # can be moved outside loop, but here makes it look cooler
+    # line_list = curve_list_to_lines(curve_list, 2)
+    # print(len(line_list))
+    #
+    # for line in line_list:
+    #     pygame.draw.line(screen, BLACK, line[0], line[1], 1)
+
+    pygame.display.update() # can be moved outside loop, but here makes it look cooler
 
     print(f"RENDERING COMPLETED IN {round(time.time() - start_time, 3)} SECONDS")
 
