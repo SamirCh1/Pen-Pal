@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-import potrace_modified as potrace
+import potrace
 
 import time # for testing
 
