@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>PenPal Login</title>
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <meta name="description" content="" />
+
+        <link rel="icon" href="favicon.png">
+        <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    </head>
+    <body>
+        <div class="logo_container">
+            <img src="{{ url_for('static', filename='logo.png') }}" class="logo" /> 
+        </div>
+
+        <h1>Pen Pals</h1>
+
+        <h2>Connect your PenPal to WiFi</h2>
+
+        <main>
+            <form method="POST" action="/connect">
+                <div class="form_group">
+                    <label for="networks">WiFi</label>
+                    <select class="input_box" id="networks" name="network">
+                        {% for network in networks %}
+                        <option value="{{ network }}">{{ network }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+
+                <div class="form_group">
+                    <label for="password">WiFi Password</label>
+                    <input class="input_box" name="password" type="password" placeholder="Your WiFi password..." />
+                </div>
+
+                <button class="input_box" type="submit" id="submit">Connect</button>
+            </form>
+        </main>
+    </body>
+</html>
+

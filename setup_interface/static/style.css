@@ -1,0 +1,66 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    background: lightgray;
+    font-family: monospace;
+}
+
+h1 {
+    margin: 0 1rem 1rem 1rem;
+    font-size: 4rem;
+    text-align: center;
+}
+
+h2 {
+    margin: 0 1rem 1rem 1rem;
+    text-align: center;
+    font-size: 2rem;
+}
+
+main {
+    margin: 0 auto;
+    max-width: 100%;
+    width: 600px;
+}
+
+.logo_container {
+    display: flex;
+    justify-content: center;
+}
+
+.logo {
+    display: block;
+    width: 100px;
+}
+
+form {
+    display: grid;
+    gap: 3rem;
+    font-size: 2rem;
+}
+
+.form_group {
+    display: grid;
+}
+
+.form_group input select {
+    display: block; 
+}
+
+#submit {
+    background: lightblue;
+}
+
+.input_box {
+    display: block;
+    height: 3rem;
+    width: 100%;
+    font-size: 2rem;
+    padding-left: 0.25rem;
+    outline: none;
+    border: 2px solid darkgrey;
+    border-radius: 5px;
+}
+
