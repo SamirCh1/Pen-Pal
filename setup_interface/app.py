@@ -5,9 +5,9 @@ app = Flask(__name__)
 
 @app.route("/")
 def home():
-    output = subprocess.check_output(["nmcli", "-t", "-f", "SSID", "dev", "wifi"])
-    ssid_list = output.decode().split("\n")
-    return render_template("index.html", networks=list(set(ssid_list)))
+    #output = subprocess.check_output(["nmcli", "-t", "-f", "SSID", "dev", "wifi"])
+    #ssid_list = output.decode().split("\n")
+    return render_template("index.html", networks=["PenPlotterWifi"])
 
 @app.route("/connect", methods=["POST"])
 def connect():

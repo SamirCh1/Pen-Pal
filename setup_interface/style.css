@@ -64,3 +64,9 @@ form {
     border-radius: 5px;
 }
 
+#status {
+    display: none;
+    margin: 0;
+    text-align: center;
+    color: red;
+}
