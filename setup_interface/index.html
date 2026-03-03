@@ -24,6 +24,11 @@
                     <label for="networks">WiFi</label>
                     <select class="input_box" id="networks" name="networks">
                         <option value="PenPlotterWifi">PenPlotterWifi</option>
+                        <option value="Some other network">Visit-Ed</option>
+                        <option value="Some other network">eduroam</option>
+                        <option value="Some other network">SDProbots</option>
+                        <option value="Some other network">central</option>
+                        <option value="Some other network">More Networks...</option>
                     </select>
                 </div>
 
@@ -49,12 +54,14 @@
                 const network = document.getElementById("networks").value;
                 const password = document.getElementById("password").value;
 
-                if (network != "PenPlotterWifi" || password != "penplotter") {
-                    status_span.style.display = "block";
-                } else {
+                if (network == "PenPlotterWifi" && password == "penplotter") {
                     status_span.innerText = "Connected!";
                     status_span.style.color = "green";
                     status_span.style.display = "block";
+                } else {
+                    status_span.innerText = "Wrong password";
+                    status_span.style.display = "block";
+                    status_span.style.color = "red";
                 }
             });
         </script>
