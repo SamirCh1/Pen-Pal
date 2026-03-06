@@ -1,0 +1,19 @@
+# Python virtual environment
+venv/
+
+# Mesh files
+meshes/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# VSCode settings
+.vscode/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Build / logs
+*.log

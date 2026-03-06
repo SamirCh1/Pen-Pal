@@ -1,0 +1,9 @@
+<launch>
+
+<rosparam file="$(find penplotter_description)/launch/controller.yaml" command="load"/>
+<node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" ns="penplotter" args="Revolute 9_position_controller Revolute 10_position_controller Revolute 15_position_controller Revolute 18_position_controller joint_state_controller "/>
+<node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="false" output="screen">
+  <remap from="/joint_states" to="/penplotter/joint_states"/>
+</node>
+
+</launch>

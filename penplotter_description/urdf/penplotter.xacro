@@ -1,0 +1,175 @@
+<?xml version="1.0" ?>
+<robot name="penplotter" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<xacro:include filename="$(find penplotter_description)/urdf/materials.xacro" />
+<xacro:include filename="$(find penplotter_description)/urdf/penplotter.trans" />
+<xacro:include filename="$(find penplotter_description)/urdf/penplotter.gazebo" />
+<link name="world"/>
+
+<link name="base_link">
+  <inertial>
+    <origin xyz="9.67684416270395e-15 0.007777777777777779 -2.680566250056496e-17" rpy="0 0 0"/>
+    <mass value="2.6634422517134255"/>
+    <inertia ixx="0.0065" iyy="0.012355" izz="0.0065" ixy="0.0" iyz="-0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://penplotter_description/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="grey"><color rgba="0.7 0.7 0.7 1"/></material>
+  </visual>
+  <collision>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://penplotter_description/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="cam2_1">
+  <inertial>
+    <origin xyz="-6.8119533237204e-18 0.01499999999999999 -0.007599348010442601" rpy="0 0 0"/>
+    <mass value="0.3408845069920397"/>
+    <inertia ixx="9.5e-05" iyy="0.000118" izz="7.7e-05" ixy="-0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.0 -0.01 -0.0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://penplotter_description/meshes/cam2_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="grey"><color rgba="0.7 0.7 0.7 1"/></material>
+  </visual>
+  <collision>
+    <origin xyz="-0.0 -0.01 -0.0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://penplotter_description/meshes/cam2_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="cam_1">
+  <inertial>
+    <origin xyz="0.006968421074246578 -0.0050000000000000044 -1.230615331429694e-13" rpy="0 0 0"/>
+    <mass value="0.23574476364591623"/>
+    <inertia ixx="5.3e-05" iyy="0.000162" izz="0.000113" ixy="-0.0" iyz="-0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.0 -0.05 -0.0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://penplotter_description/meshes/cam_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="grey"><color rgba="0.7 0.7 0.7 1"/></material>
+  </visual>
+  <collision>
+    <origin xyz="-0.0 -0.05 -0.0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://penplotter_description/meshes/cam_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="link1_1">
+  <inertial>
+    <origin xyz="-5.551115123125783e-17 0.014655306368681717 -0.09999999999996399" rpy="0 0 0"/>
+    <mass value="0.3577307511653404"/>
+    <inertia ixx="0.001521" iyy="0.001528" izz="1.6e-05" ixy="0.0" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.05 -0.05 0.0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://penplotter_description/meshes/link1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="grey"><color rgba="0.7 0.7 0.7 1"/></material>
+  </visual>
+  <collision>
+    <origin xyz="-0.05 -0.05 0.0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://penplotter_description/meshes/link1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="link2_1">
+  <inertial>
+    <origin xyz="-0.14309163168799854 -0.010000000000000023 0.0" rpy="0 0 0"/>
+    <mass value="0.917338497669319"/>
+    <inertia ixx="6.2e-05" iyy="0.006746" izz="0.006745" ixy="-0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.05 -0.05 0.2" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://penplotter_description/meshes/link2_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="grey"><color rgba="0.7 0.7 0.7 1"/></material>
+  </visual>
+  <collision>
+    <origin xyz="-0.05 -0.05 0.2" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://penplotter_description/meshes/link2_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="link3_1">
+  <inertial>
+    <origin xyz="0.030000000000000027 -0.009797501585496485 -0.11672123652329969" rpy="0 0 0"/>
+    <mass value="0.30446537558267023"/>
+    <inertia ixx="0.000944" iyy="0.000951" izz="1.3e-05" ixy="0.0" iyz="5e-06" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.03 -0.035 -0.0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://penplotter_description/meshes/link3_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="grey"><color rgba="0.7 0.7 0.7 1"/></material>
+  </visual>
+  <collision>
+    <origin xyz="0.03 -0.035 -0.0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://penplotter_description/meshes/link3_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<joint name="world_to_base" type="fixed">
+  <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+  <parent link="world"/>
+  <child link="base_link"/>
+</joint>
+
+<joint name="Revolute 9" type="continuous">
+  <origin xyz="0.0 0.01 0.0" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="cam2_1"/>
+  <axis xyz="0.0 1.0 0.0"/>
+</joint>
+
+<joint name="Revolute 10" type="continuous">
+  <origin xyz="0.0 0.05 0.0" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="cam_1"/>
+  <axis xyz="0.0 1.0 0.0"/>
+</joint>
+
+<joint name="Revolute 15" type="continuous">
+  <origin xyz="0.05 0.0 -0.0" rpy="0 0 0"/>
+  <parent link="cam_1"/>
+  <child link="link1_1"/>
+  <axis xyz="-0.0 1.0 -0.0"/>
+</joint>
+
+<joint name="Revolute 18" type="continuous">
+  <origin xyz="0.0 0.0 -0.2" rpy="0 0 0"/>
+  <parent link="link1_1"/>
+  <child link="link2_1"/>
+  <axis xyz="0.0 -1.0 0.0"/>
+</joint>
+
+<joint name="Rigid 20" type="fixed">
+  <origin xyz="-0.03 0.025 0.0" rpy="0 0 0"/>
+  <parent link="cam2_1"/>
+  <child link="link3_1"/>
+</joint>
+
+</robot>
