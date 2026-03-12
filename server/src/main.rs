@@ -200,8 +200,9 @@ fn try_start_session(state: &AppState, session_id: u64) {
             return;
         };
 
-        (session.device_a, session.device_a, session.turn_device)
+        (session.device_a, session.device_b, session.turn_device)
     };
+
 
     // Setup device A
     {
@@ -241,6 +242,7 @@ fn try_start_session(state: &AppState, session_id: u64) {
         }
     }
 
+
     // Update session state
     {
         let Some(mut session) = state.sessions.get_mut(&session_id) else {
@@ -250,6 +252,7 @@ fn try_start_session(state: &AppState, session_id: u64) {
         };
         session.state = SessionState::Active;
     }
+
 
     let start = ServerMessage::StartSession { session_id: session_id };
     send_to_device(state, dev_a, start.clone());
