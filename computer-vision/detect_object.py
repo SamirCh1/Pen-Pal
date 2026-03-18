@@ -23,8 +23,6 @@ def detect_difference(image1: cv2.typing.MatLike, image2: cv2.typing.MatLike):
 def detect_paper():
     while True:
         _, frame = capture.read()
-        ratio = 2
-        frame = cv2.resize(frame, (frame.shape[0]/ratio, frame.shape[1]/ratio), interpolation=cv2.INTER_AREA)
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         blur = cv2.medianBlur(gray, 9)
 
@@ -59,7 +57,7 @@ def detect_paper():
                              [0,0],
                              [a4_width-1, 0],
                              [a4_width-1, a4_height-1],
-                             [0, a4_height-1]], dtype='float32')
+                             [0, 840-1]], dtype='float32')
 
         for contour in contours:
             area = cv2.contourArea(contour)
@@ -76,7 +74,6 @@ def detect_paper():
             cv2.drawContours(show_rect_contour, [rect_contour], 0, (0,0,255), thickness=7)
             cv2.imshow('show rectangle contours', show_rect_contour)
             rect = order_rect(rect_contour.reshape(4,2))
-            rect = rect * ratio
             warp_map = cv2.getPerspectiveTransform(rect, dimension)
         if warp_map is not None:
             warped = cv2.warpPerspective(frame, warp_map, (a4_width, a4_height))
@@ -99,6 +96,7 @@ def order_rect(rect):
 def detect_movement():
     changed = False
     frame_rate = 15
+    prev = 0
 
     t = time.time()
     now = t
