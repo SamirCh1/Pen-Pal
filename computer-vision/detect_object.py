@@ -9,6 +9,9 @@ import cv2
 import numpy as np
 import time
 
+frame_rate = 30
+delta = (int)(1000/frame_rate)
+
 def process_image(image):
     image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     return image_gray
@@ -20,66 +23,76 @@ def detect_difference(image1: cv2.typing.MatLike, image2: cv2.typing.MatLike):
     cv2.imshow('Diff', diff)
     cv2.imshow('Dilated diff', diff)
 
-def detect_paper():
+def detect_paper_video():
     while True:
         _, frame = capture.read()
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        blur = cv2.medianBlur(gray, 9)
+        detect_paper_frame(frame)
+        cv2.waitKey(delta)
 
-        # _, thresh = cv2.threshold(blur, 255/3, 255, cv2.THRESH_TOZERO)
-        # elements = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
-        # dilate = cv2.dilate(thresh, elements)
-        # erode = cv2.erode(thresh, elements)
-        # blur_edge = dilate-erode
-        # cv2.imshow('blur edge', blur_edge)
-        # enforced_edge = cv2.dilate(blur_edge, elements)
-        # _, enforced_edge = cv2.threshold(enforced_edge, 9, 255, cv2.THRESH_BINARY)
-        # cv2.imshow('enforced edge', enforced_edge)
-        # edge = cv2.ximgproc.thinning(enforced_edge)
-        # cv2.imshow('edge', edge)
+def detect_paper_frame(frame):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    contours = get_contours(gray)
+    rect_contour = get_rect_contour(frame, contours)
+    if rect_contour is not None:
+        warp_a4(frame, rect_contour)
 
-        thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 3)
-        morph = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT,(5,5)))
-        cv2.imshow('morph', morph)
 
-        contours = cv2.findContours(morph, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        contours = contours[0] if len(contours) == 2 else contours[1]
-        contours = sorted(contours, key=cv2.contourArea, reverse=True)
-        show_contours = frame.copy()
-        cv2.drawContours(show_contours, contours, 0, (0,255,0), thickness=5)
-        cv2.imshow('show contours', show_contours)
+def get_contours(gray):
+    blur = cv2.medianBlur(gray, 9)
 
-        rect_contour = None
-        warp_map = None
-        a4_width = 594
-        a4_height = 420
-        dimension = np.array([
-                             [0,0],
-                             [a4_width-1, 0],
-                             [a4_width-1, a4_height-1],
-                             [0, 840-1]], dtype='float32')
+    # _, thresh = cv2.threshold(blur, 255/3, 255, cv2.THRESH_TOZERO)
+    # elements = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
+    # dilate = cv2.dilate(thresh, elements)
+    # erode = cv2.erode(thresh, elements)
+    # blur_edge = dilate-erode
+    # cv2.imshow('blur edge', blur_edge)
+    # enforced_edge = cv2.dilate(blur_edge, elements)
+    # _, enforced_edge = cv2.threshold(enforced_edge, 9, 255, cv2.THRESH_BINARY)
+    # cv2.imshow('enforced edge', enforced_edge)
+    # edge = cv2.ximgproc.thinning(enforced_edge)
+    # cv2.imshow('edge', edge)
 
-        for contour in contours:
-            area = cv2.contourArea(contour)
-            if area < 1000:
-                continue
-            peri = cv2.arcLength(contour, True)
-            appr = cv2.approxPolyDP(contour, 0.02 * peri, True)
-            if len(appr) == 4 and cv2.isContourConvex(appr):
-                if cv2.contourArea(appr) > (frame.shape[0] * frame.shape[1] * 0.5):
-                    rect_contour = appr
-                    break
-        if rect_contour is not None:
-            show_rect_contour = frame.copy()
-            cv2.drawContours(show_rect_contour, [rect_contour], 0, (0,0,255), thickness=7)
-            cv2.imshow('show rectangle contours', show_rect_contour)
-            rect = order_rect(rect_contour.reshape(4,2))
-            warp_map = cv2.getPerspectiveTransform(rect, dimension)
-        if warp_map is not None:
-            warped = cv2.warpPerspective(frame, warp_map, (a4_width, a4_height))
-            cv2.imshow("warped", warped)
+    thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 3)
+    morph = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT,(5,5)))
+    cv2.imshow('morph', morph)
 
-        cv2.waitKey((int)(1000/60))
+    contours = cv2.findContours(morph, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours = contours[0] if len(contours) == 2 else contours[1]
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+    show_contours = frame.copy()
+    cv2.drawContours(show_contours, contours, 0, (0,255,0), thickness=5)
+    cv2.imshow('show contours', show_contours)
+    return contours
+
+
+def get_rect_contour(frame, contours):
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        if area < 1000:
+            continue
+        peri = cv2.arcLength(contour, True)
+        appr = cv2.approxPolyDP(contour, 0.02 * peri, True)
+        if len(appr) == 4 and cv2.isContourConvex(appr):
+            if cv2.contourArea(appr) > (frame.shape[0] * frame.shape[1] * 0.5):
+                show_rect_contour = frame.copy() 
+                cv2.drawContours(show_rect_contour, [appr], 0, (0,0,255), thickness=7)
+                cv2.imshow('show rectangle contours', show_rect_contour)
+                return appr
+    return None
+
+def warp_a4(frame, rect_contour):
+    warp_map = None
+    a4_width = 594
+    a4_height = 420
+    dimension = np.array([
+                         [0,0],
+                         [a4_width-1, 0],
+                         [a4_width-1, a4_height-1],
+                         [0, 840-1]], dtype='float32')
+    rect = order_rect(rect_contour.reshape(4,2))
+    warp_map = cv2.getPerspectiveTransform(rect, dimension)
+    warped = cv2.warpPerspective(frame, warp_map, (a4_width, a4_height))
+    cv2.imshow("warped", warped)
 
 def order_rect(rect):
     res = np.ndarray((4,2), dtype='float32')
@@ -95,7 +108,6 @@ def order_rect(rect):
 
 def detect_movement():
     changed = False
-    frame_rate = 15
     prev = 0
 
     t = time.time()
@@ -105,7 +117,7 @@ def detect_movement():
         print(now)
         _, frame = capture.read()
         foreground_mask = back_sub.apply(frame)
-        cv2.waitKey((int)(1000/60))
+        cv2.waitKey(delta)
 
     _, past_output = capture.read()
     past_output = cv2.cvtColor(past_output, cv2.COLOR_BGR2GRAY)
@@ -142,7 +154,7 @@ def detect_movement():
             past_output = current_output
             changed = False
 
-        key = cv2.waitKey((int)(1000/frame_rate))
+        key = cv2.waitKey(delta)
         if key == 'q' or key == 27:
             break
 
@@ -162,7 +174,7 @@ def run_analysis(index):
         if status:
             cv2.imshow('frame', frame)
             # do_stuff_with_frame(frame)
-        key = cv2.waitKey(25)
+        key = cv2.waitKey(delta)
         if key == ord('q'):
             break
 
@@ -176,10 +188,15 @@ print(capture)
 if not capture.isOpened():
     print('Unable to open camera')
     exit(0)
+_, frame = capture.read()
+print('dimension: ' + (str)(frame.shape[1]) + ', ' + (str)(frame.shape[0]))
 
 # back_sub = cv2.createBackgroundSubtractorKNN()
 back_sub = cv2.createBackgroundSubtractorMOG2()
 # detect_movement()
 
 # run_analysis(1)
-detect_paper()
+# detect_paper()
+
+
+
