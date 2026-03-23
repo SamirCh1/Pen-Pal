@@ -16,29 +16,40 @@ def process_image(image):
     image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     return image_gray
 
-def detect_difference(image1: cv2.typing.MatLike, image2: cv2.typing.MatLike):
+def detect_difference(image1, image2):
     diff = cv2.absdiff(image1, image2)
     #  dilation expands or thickens regions of interest in an image.
-    dilated = cv2.dilate(diff,cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3,3)),iterations = 2)
+    dilated = cv2.dilate(diff,cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3,3)),iterations = 4)
+    eroded = cv2.erode(diff,cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3,3)),iterations = 1)
+    blur = cv2.GaussianBlur(eroded, (5,5), 0)
+    eroded_gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
+    _, thresh_basic = cv2.threshold(eroded_gray,25,255, cv2.THRESH_TOZERO)
+    _, thresh_otsu = cv2.threshold(thresh_basic, 0, 255, cv2.THRESH_OTSU)
     cv2.imshow('Diff', diff)
-    cv2.imshow('Dilated diff', diff)
+    cv2.imshow('Dilated diff', dilated)
+    cv2.imshow('Eroded diff', eroded)
+    cv2.imshow('Threshold1 diff', thresh_basic)
+    cv2.imshow('Threshold diff', thresh_otsu)
+    return diff
 
-def detect_paper_video():
+def detect_paper_video(capture):
     while True:
         _, frame = capture.read()
         detect_paper_frame(frame)
         cv2.waitKey(delta)
 
 def detect_paper_frame(frame):
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    contours = get_contours(gray)
+    contours = get_contours(frame)
     rect_contour = get_rect_contour(frame, contours)
     if rect_contour is not None:
-        warp_a4(frame, rect_contour)
+        paper = warp_a4(frame, rect_contour)
+        return paper
+    return None
 
 
-def get_contours(gray):
-    blur = cv2.medianBlur(gray, 9)
+def get_contours(frame):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    blur = cv2.medianBlur(gray, 7)
 
     # _, thresh = cv2.threshold(blur, 255/3, 255, cv2.THRESH_TOZERO)
     # elements = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
@@ -88,11 +99,12 @@ def warp_a4(frame, rect_contour):
                          [0,0],
                          [a4_width-1, 0],
                          [a4_width-1, a4_height-1],
-                         [0, 840-1]], dtype='float32')
+                         [0, a4_height-1]], dtype='float32')
     rect = order_rect(rect_contour.reshape(4,2))
     warp_map = cv2.getPerspectiveTransform(rect, dimension)
     warped = cv2.warpPerspective(frame, warp_map, (a4_width, a4_height))
     cv2.imshow("warped", warped)
+    return warped
 
 def order_rect(rect):
     res = np.ndarray((4,2), dtype='float32')
@@ -106,9 +118,11 @@ def order_rect(rect):
     return res
 
 
-def detect_movement():
+
+def detect_movement(capture):
     changed = False
-    prev = 0
+    back_sub = cv2.createBackgroundSubtractorKNN()
+    # back_sub = cv2.createBackgroundSubtractorMOG2()
 
     t = time.time()
     now = t
@@ -177,26 +191,5 @@ def run_analysis(index):
         key = cv2.waitKey(delta)
         if key == ord('q'):
             break
-
-# image1 = cv2.imread('test3.jpg')
-# image2 = cv2.imread('test3_alt.jpg')
-# if image1 is not None and image2 is not None:
-#     detect_difference(image1, image2)
-
-capture = cv2.VideoCapture(1)
-print(capture)
-if not capture.isOpened():
-    print('Unable to open camera')
-    exit(0)
-_, frame = capture.read()
-print('dimension: ' + (str)(frame.shape[1]) + ', ' + (str)(frame.shape[0]))
-
-# back_sub = cv2.createBackgroundSubtractorKNN()
-back_sub = cv2.createBackgroundSubtractorMOG2()
-# detect_movement()
-
-# run_analysis(1)
-# detect_paper()
-
 
 
