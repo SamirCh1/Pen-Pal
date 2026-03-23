@@ -2,6 +2,7 @@ import cv2
 import skimage.morphology as morph
 import numpy as np
 from vectorise import vectorise
+import json
 
 
 """
@@ -18,7 +19,7 @@ Steps in image processing pipeline:
     5. normalise vector to correct proportions and angle
 """
 
-def full_processing_pipeline(image):
+def full_processing_pipeline(image, on_paper=True):
 
     # paper = extract_paper(image)
     # if paper is None:
@@ -29,8 +30,14 @@ def full_processing_pipeline(image):
 
     skeleton = skeletonize(lines)
 
-    segment_list = vectorise(skeleton)
-    return segment_list
+    _, segment_list = vectorise(skeleton)
+
+    if on_paper:
+        segment_list = to_a4(skeleton, segment_list)
+
+    json_segs = json.dumps(segment_list)
+
+    return json_segs
 
 # temporary function for testing vectorisation
 def get_skeleton(image):
@@ -40,6 +47,24 @@ def get_skeleton(image):
 
     skeleton = skeletonize(lines)
     return skeleton
+
+def to_a4(skeleton, segment_list):
+    a4_w, a4_h = 210, 297
+    img_h, img_w = tuple(skeleton.shape[0:2])
+
+    #both should be 4
+    w_ratio = a4_w/img_w
+    h_ratio = a4_h/img_h
+
+    segments = []
+    for seg in segment_list:
+        segment = []
+        for p in seg:
+            x,y = p
+            segment.append([x*w_ratio, y*h_ratio])
+        segments.append(segment)
+
+    return segments
 
 def extract_paper(image):
     # https://github.com/Akulaleelavathi/Extracting-a-Paper
@@ -64,29 +89,23 @@ def extract_paper(image):
         box = np.int8(box)
         ordered_points = order_points(box)
 
-    # The dimensions of the new image (width and height) are computed based on the distances between the corners.
-    # Compute the width and height of the new image based on the corners
-    widthA = np.sqrt(((ordered_points[2][0] - ordered_points[3][0]) ** 2) + ((ordered_points[2][1] - ordered_points[3][1]) ** 2))
-    widthB = np.sqrt(((ordered_points[1][0] - ordered_points[0][0]) ** 2) + ((ordered_points[1][1] - ordered_points[0][1]) ** 2))
-    maxWidth = max(int(widthA), int(widthB))
 
-    heightA = np.sqrt(((ordered_points[1][0] - ordered_points[2][0]) ** 2) + ((ordered_points[1][1] - ordered_points[2][1]) ** 2))
-    heightB = np.sqrt(((ordered_points[0][0] - ordered_points[3][0]) ** 2) + ((ordered_points[0][1] - ordered_points[3][1]) ** 2))
-    maxHeight = max(int(heightA), int(heightB))
+    paper_w = 1189
+    paper_h = 841
 
     # Set destination points for the perspective transform
     dst = np.array([
         [0, 0],
-        [maxWidth - 1, 0],
-        [maxWidth - 1, maxHeight - 1],
-        [0, maxHeight - 1]], dtype="float32")
+        [paper_w - 1, 0],
+        [paper_w - 1, paper_h - 1],
+        [0, paper_h - 1]], dtype="float32")
 
     # Compute the perspective transform matrix and then apply it
     M = cv2.getPerspectiveTransform(ordered_points, dst)
-    warped = cv2.warpPerspective(image, M, (maxWidth, maxHeight))
+    warped = cv2.warpPerspective(image, M, (paper_w, paper_h))
 
     # Resize the warped image to match the original image dimensions
-    warped_resized = cv2.resize(warped, (image.shape[1], image.shape[0]))
+    warped_resized = cv2.resize(warped, (paper_w, paper_h))
     warped_coloured = cv2.cvtColor(warped_resized, cv2.COLOR_BGR2RGB)
     return warped_coloured
 

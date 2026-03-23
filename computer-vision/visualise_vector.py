@@ -43,15 +43,15 @@ def render_segments(screen, segments, colour):
             pygame.draw.line(screen, colour, prev, current, 3)
             prev = current
 
-def render(screen, graph: PixelGraph, segments: list):
+def render(screen, segments: list):
     screen.fill(WHITE)
     render_segments(screen, segments, BLACK)
-    # render_skeleton(screen, skeleton, RED)
-    # render_points(screen, graph.segment_ends, RED)
 
 def to_json(segments):
     string = json.dumps(segments)
     return string
+
+
 
 def main():
     # modify file name as needed
@@ -63,12 +63,12 @@ def main():
 
     dimensions = tuple(reversed(image.shape[0:2]))
     pygame.init()
-    screen = pygame.display.set_mode(dimensions)
-    # screen = pygame.display.set_mode((1920, 1080))
+    # screen = pygame.display.set_mode(dimensions)
+    screen = pygame.display.set_mode((1280, 720))
 
     cap = cv2.VideoCapture(1)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
     run = True
     while run:
@@ -93,11 +93,11 @@ def main():
 
         current = time.time()
 
-        graph, segments = full_processing_pipeline(image)
+        json_out = full_processing_pipeline(frame, on_paper=False)
+        segments = json.loads(json_out)
         print(f"{sum([len(seg) for seg in segments])} lines")
-        render(screen, graph, segments)
+        render(screen, segments)
         print(f"vectorisation done in {time.time() - current} seconds")
-
         pygame.display.update()
 
     cap.release()
