@@ -1,107 +1,107 @@
 import pygame
-from pygame.locals import QUIT
-import numpy as np
-import time
+from pygame.locals import QUIT, KEYDOWN
 
-from process_image import *
+
+import time
+import json
+
+from vectorise import PixelGraph, vectorise
+
+from process_image import full_processing_pipeline, get_skeleton
 import cv2
 
 WHITE = (255, 255, 255)
 BLACK = (0,0,0)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
 
-# temporary function to simplify demo 1
-def curve_list_to_lines(curve_list, nlines):
-    line_list = []
-    for curve in curve_list:
-        for segment in curve:
-            p0 = segment[0]
-            p1 = segment[1]
-            p2 = segment[2]
-            p3 = segment[3]
-            prev = p0
-            for i in range(nlines):
-                t = 1 / nlines * (i+1)
-                point = (get_cubic_point(0, t, p0, p1, p2, p3), get_cubic_point(1, t, p0, p1, p2, p3))
-                line_list.append((prev, point))
-                prev = point
-    return line_list
 
-# calculate location of point at t
-def get_cubic_point(i, t, p0, p1, p2, p3):
-    # i = 0 for x, 1 for y
-    return (1-t)**3 * p0[i] + \
-        3 * (1-t)**2 * t * p1[i] + \
-        3 * (1-t) * t**2 * p2[i] + \
-        t**3 * p3[i]
 
-# render curve as series of lines between values of t
-def render_cubic(screen, p0, p1, p2, p3):
-    prev = p0
-    for t in np.arange(0, 1, 1/10):
-        point = (get_cubic_point(0, t, p0, p1, p2, p3), get_cubic_point(1, t, p0, p1, p2, p3))
+def render_skeleton(screen, skeleton, colour):
+    for x in range(skeleton.shape[1]):
+        for y in range(skeleton.shape[0]):
+            if skeleton[y][x]:
+                pygame.draw.circle(screen, colour, (x, y), 1)
 
-        pygame.draw.line(screen, BLACK, point, prev, 1)
-        prev = point
-    pygame.draw.line(screen, BLACK, prev, p3, 1)
+def render_points(screen, pixels, colour):
+    for px in pixels:
+        pygame.draw.circle(screen, colour, px.dom.pos, 2) #line(screen, colour, px.dom.pos, px.dom.pos, 4)
 
+# def render_segments(screen, segments, colour):
+#     for segment in segments:
+#         for px in segment:
+#             a, b = px
+#             pygame.draw.line(screen, colour, a, b, 3)
+
+def render_segments(screen, segments, colour):
+    for segment in segments:
+        prev = segment[0]
+        for current in segment:
+            if current is prev:
+                continue
+            pygame.draw.line(screen, colour, prev, current, 3)
+            prev = current
+
+def render(screen, graph: PixelGraph, segments: list):
+    screen.fill(WHITE)
+    render_segments(screen, segments, BLACK)
+    # render_skeleton(screen, skeleton, RED)
+    # render_points(screen, graph.segment_ends, RED)
+
+def to_json(segments):
+    string = json.dumps(segments)
+    return string
 
 def main():
-
-    start_time = time.time()
-    print("SKELETONIZATION START")
-
     # modify file name as needed
+    # image = cv2.imread("images/handwritten.jpeg")
     image = cv2.imread("images/test3.jpg")
-    skeleton = full_processing_pipeline(image)
+    # image = cv2.imread("ina.png")
 
-    print(f"SKELETONIZATION COMPLETED IN {round(time.time() - start_time, 3)} SECONDS")
-
-
-
-
-
-    start_time = time.time()
-    print("VECTORIZATION START")
-
-    curve_list = vectorize(skeleton)
-
-    print(f"VECTORIZATION COMPLETED IN {round(time.time() - start_time, 3)} SECONDS")
+    epsilon = 0.9
 
     dimensions = tuple(reversed(image.shape[0:2]))
-
     pygame.init()
     screen = pygame.display.set_mode(dimensions)
-    screen.fill(WHITE)
+    # screen = pygame.display.set_mode((1920, 1080))
 
-    pygame.display.update()
-
-    print("RENDERING START")
-    start_time = time.time()
-
-    for curve in curve_list:
-        # render each segment in curve
-        for (p0, p1, p2, p3) in curve:
-            render_cubic(screen, p0, p1, p2, p3)
-
-    # line_list = curve_list_to_lines(curve_list, 2)
-    # print(len(line_list))
-    #
-    # for line in line_list:
-    #     pygame.draw.line(screen, BLACK, line[0], line[1], 1)
-
-    pygame.display.update() # can be moved outside loop, but here makes it look cooler
-
-    print(f"RENDERING COMPLETED IN {round(time.time() - start_time, 3)} SECONDS")
+    cap = cv2.VideoCapture(1)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
     run = True
     while run:
+        for _ in range(5):
+                cap.grab()
+        success, frame = cap.retrieve()
+
+        if not success:
+            continue
+
         for event in pygame.event.get():
             if event.type == QUIT:
                 run = False
+            if event.type == KEYDOWN:
+                if event.key ==  pygame.K_MINUS:
+                    epsilon -= 0.1
+                    if epsilon < 0:
+                        epsilon = 0.0
+                else:
+                    epsilon += 0.1
+                print(f"epsilon = {epsilon}")
 
-        # avoid wasting cpu cycles
-        time.sleep(0.1)
+        current = time.time()
 
+        graph, segments = full_processing_pipeline(image)
+        print(f"{sum([len(seg) for seg in segments])} lines")
+        render(screen, graph, segments)
+        print(f"vectorisation done in {time.time() - current} seconds")
+
+        pygame.display.update()
+
+    cap.release()
+    pygame.image.save(screen, "out.png")
     pygame.quit()
 
 if __name__ == "__main__":

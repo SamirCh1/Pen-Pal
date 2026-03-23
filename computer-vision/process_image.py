@@ -1,7 +1,7 @@
 import cv2
 import skimage.morphology as morph
 import numpy as np
-import time # for testing
+from vectorise import vectorise
 
 
 """
@@ -21,20 +21,22 @@ Steps in image processing pipeline:
 def full_processing_pipeline(image):
 
     # paper = extract_paper(image)
-    paper = image # temporary before proper implementation
+    # if paper is None:
+        # return []
 
-    lines = extract_lines(paper)
+    paper = image # temporary before proper implementation
+    lines = extract_lines_blur(paper, 5, 128)
 
     skeleton = skeletonize(lines)
 
-    curve_list = vectorize(skeleton)
-    return curve_list
+    segment_list = vectorise(skeleton)
+    return segment_list
 
 # temporary function for testing vectorisation
 def get_skeleton(image):
     paper = image
 
-    lines = extract_lines(paper)
+    lines = extract_lines_blur(paper, 5, 128)
 
     skeleton = skeletonize(lines)
     return skeleton
@@ -45,7 +47,7 @@ def extract_paper(image):
 
     if largest_contour is None:
         print("Paper contour not found.")
-        return image
+        return None
 
     epsilon = 0.02 * cv2.arcLength(largest_contour, True)
     approx = cv2.approxPolyDP(largest_contour, epsilon, True)
@@ -59,7 +61,7 @@ def extract_paper(image):
         # https://theailearner.com/tag/cv2-minarearect/
         rect = cv2.minAreaRect(largest_contour)
         box = cv2.boxPoints(rect)
-        box = np.int0(box)
+        box = np.int8(box)
         ordered_points = order_points(box)
 
     # The dimensions of the new image (width and height) are computed based on the distances between the corners.
@@ -129,17 +131,19 @@ def extract_lines(image, blockSize = 13):
 
     return final
 
-def extract_lines_blur(image, blockSize = 13):
+def extract_lines_blur(image, k, thres, blockSize = 13):
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     blurred = cv2.GaussianBlur(gray, (5,5), 2)
     adaptive = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, blockSize, 2)
 
     # reduce noise in final output to save time tracing
-    blurred = cv2.GaussianBlur(adaptive, (5,5), 2)
-    _, threshold = cv2.threshold(blurred, 128, 255, cv2.THRESH_BINARY)
+    if k % 2 == 0:
+        k -= 1
+    blurred = cv2.GaussianBlur(adaptive, (k,k), 2)
+    _, threshold = cv2.threshold(blurred, thres, 255, cv2.THRESH_BINARY)
 
     final = threshold
-    # final = blurred
+
 
     return final
 
@@ -147,41 +151,3 @@ def skeletonize(image):
     inverted = cv2.bitwise_not(image)
     thin = morph.skeletonize(inverted)
     return thin
-
-# convert skeletonized bitmap into series of curves
-# # each curve contains a series of segments
-# # each segment is a bezier curve
-def vectorize(skeleton):
-
-    #converts point from potrace's Point class to tuple
-    normal_point = lambda point : (point.x, point.y)
-
-    curve_list = []
-    bmp = potrace.Bitmap(skeleton)
-    path = bmp.trace(
-        20, # min area of curve
-        potrace.POTRACE_TURNPOLICY_BLACK, # seems like the most appropriate policy
-        1.3333, #alphamax: experiment with this
-        True, #opticurve: set to True to minimize number of curves
-        0.2 # tolerance: most likely should keep to default
-        )
-    curves = path.curves
-
-    for curve in curves:
-        # convert from potrace's Curve class to list of Bezier curves
-        segments = []
-
-        # each curve uses the end of the previous curve as its start
-        last_end = curve.start_point
-        for segment in curve.segments:
-
-            if not segment.is_corner:
-                segments.append((
-                    normal_point(last_end),
-                    normal_point(segment.c1),
-                    normal_point(segment.c2),
-                    normal_point(segment.end_point)))
-
-                last_end = segment.end_point
-        curve_list.append(segments)
-    return curve_list

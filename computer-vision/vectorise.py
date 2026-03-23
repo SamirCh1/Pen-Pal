@@ -5,7 +5,6 @@ import math
 """
 TODO:
     use bezier curves for more natural looking lines
-    handle shapes without ends
 """
 
 class PixelNode:
@@ -214,7 +213,6 @@ def odd_pixels(graph: PixelGraph):
                     continue
                 q.put(neighbour)
                 graph.pixels.discard(neighbour)
-
     return ends
 
 
@@ -227,17 +225,19 @@ def vectorise(skeleton: np.ndarray, epsilon: float = 0.8):
         segments += ends_to_segments(graph, odd)
     simple_segments = [simplify_segment(seg, epsilon) for seg in segments]
 
-    seg_lines = []
-    for seg in simple_segments:
-        last = None
-        current_segment = []
+    # seg_lines = []
+    # for seg in simple_segments:
 
-        for px in seg:
-            if last is None:
-                last = px
-                continue
-            current_segment.append((last, px))
-            last = px
-        seg_lines.append(current_segment)
+    #     last = None
+    #     current_segment = []
 
-    return graph, seg_lines
+    #     for px in seg:
+    #         if last is None:
+    #             last = px
+    #             continue
+    #         current_segment.append((last, px))
+    #         last = px
+
+    #     seg_lines.append(current_segment)
+
+    return graph, simple_segments
