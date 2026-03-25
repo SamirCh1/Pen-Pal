@@ -34,7 +34,10 @@ enum ServerMessage {
         session_id: u64,
         svg: String
     },
-    Error
+    Error {
+        session_id: u64,
+        reason: String
+    }
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -163,7 +166,7 @@ async fn handle_ws(socket: WebSocket, app_state: AppState, mut rx_chan: Unbounde
         }
     });
 
-    while let Ok(msg) = receiver.next().await.unwrap() {
+    while let Some(Ok(msg)) = receiver.next().await {
         match msg {
             Message::Text(text) => {
                 let parsed = match serde_json::from_str::<ClientMessage>(&text) {
@@ -177,9 +180,33 @@ async fn handle_ws(socket: WebSocket, app_state: AppState, mut rx_chan: Unbounde
             },
 
             Message::Close(_) => break,
-
-            // TODO: handle invalid messages (Binary)
             _ => {}
+        }
+    }
+
+    // Disconnect cleanup
+    let session_to_end = {
+        app_state.device_conns.get(&device_id).and_then(|dev| {
+            if let ConnectedDeviceState::InSession(sid) = dev.state {
+                Some(sid)
+            } else {
+                None
+            }
+        })
+    };
+
+    if let Some(sid) = session_to_end {
+        if let Some(mut session) = app_state.sessions.get_mut(&sid) {
+            session.state = SessionState::Ended;
+
+            let other_device = get_other(device_id, session.device_a, session.device_b);
+
+            send_to_device(&app_state, other_device,
+                ServerMessage::Error {session_id: session.id, reason: "DISCONNECTED".into()});
+
+            if let Some(mut other_dev) = app_state.device_conns.get_mut(&other_device) {
+                other_dev.state = ConnectedDeviceState::Idle;
+            }
         }
     }
     
