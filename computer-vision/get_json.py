@@ -6,26 +6,21 @@
 import time
 import json
 
-from process_image import full_processing_pipeline, get_skeleton
+from process_image import extract_paper, full_processing_pipeline, get_skeleton
 import cv2
 
 
-def to_json(segments):
-    string = json.dumps(segments)
-    return string
-
 def main():
     # modify file name as needed
-    image = cv2.imread("images/smiley.png")
-    # image = cv2.imread("ina.png")
+    image = cv2.imread("test6.jpg")
 
     start = time.time()
 
-    json_str = full_processing_pipeline(image, on_paper=False)
+    paper = extract_paper(image)
+    json_str = full_processing_pipeline(paper, on_paper=True)
     segments = json.loads(json_str)
-    with open("smiley.json", "w") as file:
+    with open("smiley_drawn.json", "w") as file:
         json.dump(segments, file, indent=2)
-    print(f"{sum([len(seg) for seg in segments])} lines")
     print(f"vectorisation done in {time.time() - start} seconds")
 
 

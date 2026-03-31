@@ -215,6 +215,11 @@ def odd_pixels(graph: PixelGraph):
                 graph.pixels.discard(neighbour)
     return ends
 
+def is_edge(seg: list[tuple[int, int]], shape):
+    h, w = tuple(shape)
+    start = seg[0]
+    return start[0] < w/100 or start[0] > w*99/100 \
+        or start[1] < h/100 or start[1] > h*99/100
 
 def vectorise(skeleton: np.ndarray, epsilon: float = 0.8):
 
@@ -239,5 +244,6 @@ def vectorise(skeleton: np.ndarray, epsilon: float = 0.8):
     #         last = px
 
     #     seg_lines.append(current_segment)
-
-    return graph, simple_segments
+    simple_segments = [seg for seg in simple_segments if not is_edge(seg, skeleton.shape[:2])]
+    sorted_segments = sorted(simple_segments, key=(lambda p: p[0][0]*1000000 + p[0][1]))
+    return graph, sorted_segments

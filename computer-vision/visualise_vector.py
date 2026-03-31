@@ -1,13 +1,13 @@
+from numpy import average
 import pygame
 from pygame.locals import QUIT, KEYDOWN
-
 
 import time
 import json
 
 from vectorise import PixelGraph, vectorise
 
-from process_image import full_processing_pipeline, get_skeleton
+from process_image import extract_paper, full_processing_pipeline, get_skeleton
 import cv2
 
 WHITE = (255, 255, 255)
@@ -40,7 +40,7 @@ def render_segments(screen, segments, colour):
         for current in segment:
             if current is prev:
                 continue
-            pygame.draw.line(screen, colour, prev, current, 3)
+            pygame.draw.line(screen, colour, prev, current, 1)
             prev = current
 
 def render(screen, segments: list):
@@ -56,29 +56,25 @@ def to_json(segments):
 def main():
     # modify file name as needed
     # image = cv2.imread("images/handwritten.jpeg")
-    image = cv2.imread("images/test3.jpg")
-    # image = cv2.imread("ina.png")
+    # image = cv2.imread("images/test3.jpg")
+    image = cv2.imread("test6.jpg")
+    assert image is not None
 
+    image = cv2.imread("a.jpg")
+
+    # on_paper = True
+    on_paper = False
     epsilon = 0.9
 
     dimensions = tuple(reversed(image.shape[0:2]))
     pygame.init()
-    # screen = pygame.display.set_mode(dimensions)
-    screen = pygame.display.set_mode((1280, 720))
+    screen = pygame.display.set_mode(dimensions)
 
-    cap = cv2.VideoCapture(1)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    if on_paper:
+        image = extract_paper(image)
 
     run = True
     while run:
-        for _ in range(5):
-                cap.grab()
-        success, frame = cap.retrieve()
-
-        if not success:
-            continue
-
         for event in pygame.event.get():
             if event.type == QUIT:
                 run = False
@@ -93,15 +89,13 @@ def main():
 
         current = time.time()
 
-        json_out = full_processing_pipeline(frame, on_paper=False)
+        json_out = full_processing_pipeline(image, on_paper=on_paper)
         segments = json.loads(json_out)
         print(f"{sum([len(seg) for seg in segments])} lines")
         render(screen, segments)
         print(f"vectorisation done in {time.time() - current} seconds")
         pygame.display.update()
 
-    cap.release()
-    pygame.image.save(screen, "out.png")
     pygame.quit()
 
 if __name__ == "__main__":

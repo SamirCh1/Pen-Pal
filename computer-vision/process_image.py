@@ -4,6 +4,7 @@ import numpy as np
 from vectorise import vectorise
 import json
 
+board_hsv = 0
 
 """
 Steps in image processing pipeline:
@@ -19,14 +20,22 @@ Steps in image processing pipeline:
     5. normalise vector to correct proportions and angle
 """
 
+def get_current_frame(cap: cv2.VideoCapture):
+    image = None
+    while image is None:
+        for _ in range(5):
+            cap.grab()
+        success, frame = cap.retrieve()
+        if not success:
+            continue
+
+        image = extract_paper(image)
+    return image
+
+
 def full_processing_pipeline(image, on_paper=True):
 
-    # paper = extract_paper(image)
-    # if paper is None:
-        # return []
-
-    paper = image # temporary before proper implementation
-    lines = extract_lines_blur(paper, 5, 128)
+    lines = extract_lines_blur(image, 3, 10)
 
     skeleton = skeletonize(lines)
 
@@ -35,9 +44,9 @@ def full_processing_pipeline(image, on_paper=True):
     if on_paper:
         segment_list = to_a4(skeleton, segment_list)
 
-    json_segs = json.dumps(segment_list)
+    segments_json = json.dumps(segment_list)
 
-    return json_segs
+    return segments_json
 
 # temporary function for testing vectorisation
 def get_skeleton(image):
@@ -49,7 +58,8 @@ def get_skeleton(image):
     return skeleton
 
 def to_a4(skeleton, segment_list):
-    a4_w, a4_h = 210, 297
+    # a4_w, a4_h = 210, 297
+    a4_w, a4_h = 297, 210
     img_h, img_w = tuple(skeleton.shape[0:2])
 
     #both should be 4
@@ -61,7 +71,7 @@ def to_a4(skeleton, segment_list):
         segment = []
         for p in seg:
             x,y = p
-            segment.append([x*w_ratio, y*h_ratio])
+            segment.append([x*w_ratio, (img_h-y)*h_ratio])
         segments.append(segment)
 
     return segments
@@ -86,12 +96,15 @@ def extract_paper(image):
         # https://theailearner.com/tag/cv2-minarearect/
         rect = cv2.minAreaRect(largest_contour)
         box = cv2.boxPoints(rect)
-        box = np.int8(box)
+        box = np.intp(box)
         ordered_points = order_points(box)
 
 
+    ## 4x a4 proportions
     paper_w = 1189
     paper_h = 841
+    # paper_w = 841
+    # paper_h = 1189
 
     # Set destination points for the perspective transform
     dst = np.array([
@@ -106,7 +119,8 @@ def extract_paper(image):
 
     # Resize the warped image to match the original image dimensions
     warped_resized = cv2.resize(warped, (paper_w, paper_h))
-    warped_coloured = cv2.cvtColor(warped_resized, cv2.COLOR_BGR2RGB)
+    # warped_coloured = cv2.cvtColor(warped_resized, cv2.COLOR_BGR2RGB)
+    warped_coloured = warped_resized
     return warped_coloured
 
 def order_points(pts):
@@ -119,6 +133,7 @@ def order_points(pts):
     rect[3] = pts[np.argmax(diff)]
     return rect
 
+
 def find_largest_contour(image):
     hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
     hsv = cv2.GaussianBlur(hsv, (5,5), 2)
@@ -127,6 +142,7 @@ def find_largest_contour(image):
     upper = np.array([340, 255, 255])
 
     red = cv2.inRange(hsv, lower, upper)
+    # canny =cv2.Canny(grey, )
 
     contours, hierarchy = cv2.findContours(image=red, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_NONE)
     sortedContours = sorted(contours, key=lambda x: cv2.contourArea(x), reverse=True)
