@@ -42,25 +42,17 @@ def full_processing_pipeline(image, on_paper=True):
     _, segment_list = vectorise(skeleton)
 
     if on_paper:
-        segment_list = to_a4(skeleton, segment_list)
+        segment_list = to_a4(segment_list, skeleton.shape)
 
     segments_json = json.dumps(segment_list)
 
     return segments_json
 
-# temporary function for testing vectorisation
-def get_skeleton(image):
-    paper = image
 
-    lines = extract_lines_blur(paper, 5, 128)
-
-    skeleton = skeletonize(lines)
-    return skeleton
-
-def to_a4(skeleton, segment_list):
+def to_a4(segment_list, shape):
     # a4_w, a4_h = 210, 297
     a4_w, a4_h = 297, 210
-    img_h, img_w = tuple(skeleton.shape[0:2])
+    img_h, img_w = tuple(shape[0:2])
 
     #both should be 4
     w_ratio = a4_w/img_w

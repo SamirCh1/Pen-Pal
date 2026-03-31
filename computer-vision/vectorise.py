@@ -115,7 +115,9 @@ def ends_to_segments(graph: PixelGraph, ends: list[PixelNode]) -> list[list[tupl
     # Store as frozenset({node1, node2}) for undirected uniqueness
     visited_edges = set()
 
-    for start_node in ends:
+    sorted_ends = sorted(ends, key=(lambda p: p.dom.pos[0] + p.dom.pos[1]*1000000))
+
+    for start_node in sorted_ends:
         graph.pixels.discard(start_node)
         for neighbor in start_node.neighbours:
             graph.pixels.discard(neighbor)
